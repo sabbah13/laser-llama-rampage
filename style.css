@@ -9,6 +9,7 @@ body {
     background: #1a1a2e;
     color: white;
     overflow: hidden;
+    touch-action: none; /* Prevent default touch behaviors */
 }
 
 #gameContainer {
@@ -67,6 +68,85 @@ body {
     color: #ff6b6b;
 }
 
+/* Mobile Controls */
+#mobileControls {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+}
+
+#leftThumbControls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    pointer-events: auto;
+}
+
+.control-btn {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    border: 3px solid #4ecdc4;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.1s ease;
+    pointer-events: auto;
+}
+
+.control-btn:active {
+    background: rgba(78, 205, 196, 0.3);
+    transform: scale(0.95);
+}
+
+.control-btn span {
+    pointer-events: none;
+}
+
+#movementArea {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 150px;
+    height: 150px;
+    pointer-events: auto;
+}
+
+#movementJoystick {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 3px solid #4ecdc4;
+    background: rgba(0, 0, 0, 0.6);
+    position: relative;
+    cursor: pointer;
+}
+
+#joystickHandle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #4ecdc4;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: all 0.1s ease;
+    box-shadow: 0 0 10px rgba(78, 205, 196, 0.5);
+}
+
 #instructions {
     position: absolute;
     top: 50%;
@@ -119,4 +199,78 @@ body {
     0% { background-color: rgba(255, 0, 0, 0); }
     50% { background-color: rgba(255, 0, 0, 0.3); }
     100% { background-color: rgba(255, 0, 0, 0); }
+}
+
+/* Mobile/Desktop Detection */
+.mobile-only {
+    display: none;
+}
+
+/* Mobile Styles */
+@media (max-width: 768px), (hover: none) {
+    .mobile-only {
+        display: block;
+    }
+    
+    #desktopControls {
+        display: none;
+    }
+    
+    #crosshair {
+        font-size: 16px;
+    }
+    
+    #ui {
+        top: 10px;
+        left: 10px;
+    }
+    
+    #ui div {
+        padding: 8px 12px;
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+    
+    #instructions {
+        max-width: 320px;
+        padding: 20px;
+    }
+    
+    #instructions h2 {
+        font-size: 20px;
+    }
+    
+    #instructions p {
+        font-size: 14px;
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+    .control-btn {
+        width: 60px;
+        height: 60px;
+        font-size: 20px;
+    }
+    
+    #movementArea {
+        width: 120px;
+        height: 120px;
+    }
+    
+    #joystickHandle {
+        width: 30px;
+        height: 30px;
+    }
+    
+    #leftThumbControls {
+        bottom: 15px;
+        left: 15px;
+        gap: 10px;
+    }
+    
+    #movementArea {
+        bottom: 15px;
+        right: 15px;
+    }
 }

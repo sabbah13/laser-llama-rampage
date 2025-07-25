@@ -12,6 +12,15 @@ let laserBeams = [];
 let healthPacks = [];
 let cameraShake = { x: 0, y: 0, intensity: 0, duration: 0 };
 
+// Mobile touch controls
+let isMobile = false;
+let touchControls = {
+    movement: { x: 0, y: 0, active: false },
+    joystick: { centerX: 0, centerY: 0, maxRadius: 0 },
+    jumpPressed: false,
+    shootPressed: false
+};
+
 // Game stats
 let health = 100;
 let maxHealth = 100;
@@ -909,86 +918,235 @@ function createLaserGun() {
     return gunGroup;
 }
 
+function detectMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (navigator.maxTouchPoints && navigator.maxTouchPoints > 1) ||
+           window.innerWidth <= 768;
+}
+
 function setupEventListeners() {
-    // Keyboard events
-    document.addEventListener('keydown', (event) => {
-        keys[event.code] = true;
-        
-        if (gameStarted) {
-            console.log('Key pressed:', event.code);
+    // Detect if mobile device
+    isMobile = detectMobile();
+    console.log('Mobile device detected:', isMobile);
+    
+    // Show/hide appropriate controls
+    if (isMobile) {
+        document.querySelectorAll('.mobile-only').forEach(el => el.style.display = 'block');
+        document.getElementById('desktopControls').style.display = 'none';
+        setupMobileControls();
+    } else {
+        document.querySelectorAll('.mobile-only').forEach(el => el.style.display = 'none');
+        document.getElementById('desktopControls').style.display = 'block';
+    }
+    
+    // Keyboard events (desktop only)
+    if (!isMobile) {
+        document.addEventListener('keydown', (event) => {
+            keys[event.code] = true;
             
-            if (event.code === 'Space') {
-                event.preventDefault();
-                if (playerOnGround) {
-                    playerVelocity.y = JUMP_FORCE;
-                    playerOnGround = false;
+            if (gameStarted) {
+                console.log('Key pressed:', event.code);
+                
+                if (event.code === 'Space') {
+                    event.preventDefault();
+                    if (playerOnGround) {
+                        playerVelocity.y = JUMP_FORCE;
+                        playerOnGround = false;
+                    }
+                }
+                
+                if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+                    shootLaser();
+                }
+                
+                if (event.code === 'KeyM') {
+                    toggleMusic();
                 }
             }
-            
-            if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+        });
+
+        document.addEventListener('keyup', (event) => {
+            keys[event.code] = false;
+        });
+
+        // Mouse events (desktop only)
+        document.addEventListener('mousemove', (event) => {
+            if (gameStarted) {
+                const locked = document.pointerLockElement || 
+                              document.mozPointerLockElement || 
+                              document.webkitPointerLockElement;
+                
+                if (locked) {
+                    mouseX -= event.movementX * MOUSE_SENSITIVITY;
+                    mouseY -= event.movementY * MOUSE_SENSITIVITY;
+                    mouseY = Math.max(-Math.PI/2, Math.min(Math.PI/2, mouseY));
+                }
+            }
+        });
+
+        // Click to start game or shoot (desktop only)
+        document.addEventListener('click', (event) => {
+            if (!gameStarted) {
+                startGame();
+            } else if (!isMobile) {
                 shootLaser();
             }
-            
-            if (event.code === 'KeyM') {
-                toggleMusic();
+        });
+    }
+
+    // Touch events for mobile game start
+    if (isMobile) {
+        document.addEventListener('touchstart', (event) => {
+            if (!gameStarted) {
+                event.preventDefault();
+                startGame();
             }
-        }
-    });
-
-    document.addEventListener('keyup', (event) => {
-        keys[event.code] = false;
-    });
-
-    // Mouse events
-    document.addEventListener('mousemove', (event) => {
-        if (gameStarted) {
-            const locked = document.pointerLockElement || 
-                          document.mozPointerLockElement || 
-                          document.webkitPointerLockElement;
-            
-            if (locked) {
-                mouseX -= event.movementX * MOUSE_SENSITIVITY;
-                mouseY -= event.movementY * MOUSE_SENSITIVITY;
-                mouseY = Math.max(-Math.PI/2, Math.min(Math.PI/2, mouseY));
-            }
-        }
-    });
-
-    // Click to start game or shoot
-    document.addEventListener('click', (event) => {
-        if (!gameStarted) {
-            startGame();
-        } else {
-            shootLaser();
-        }
-    });
+        }, { passive: false });
+    }
 
     // Window resize
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // Update mobile detection on resize
+        const wasMobile = isMobile;
+        isMobile = detectMobile();
+        if (wasMobile !== isMobile) {
+            location.reload(); // Reload if mobile state changes
+        }
     });
 
-    // Pointer lock change
-    document.addEventListener('pointerlockchange', () => {
-        if (document.pointerLockElement === null && gameStarted) {
-            console.log('Pointer lock lost');
-        }
-    });
+    // Pointer lock change (desktop only)
+    if (!isMobile) {
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === null && gameStarted) {
+                console.log('Pointer lock lost');
+            }
+        });
+        
+        // Alternative pointer lock event names for different browsers
+        document.addEventListener('mozpointerlockchange', () => {
+            if (document.mozPointerLockElement === null && gameStarted) {
+                console.log('Pointer lock lost (Mozilla)');
+            }
+        });
+        
+        document.addEventListener('webkitpointerlockchange', () => {
+            if (document.webkitPointerLockElement === null && gameStarted) {
+                console.log('Pointer lock lost (Webkit)');
+            }
+        });
+    }
+}
+
+function setupMobileControls() {
+    const joystick = document.getElementById('movementJoystick');
+    const joystickHandle = document.getElementById('joystickHandle');
+    const jumpBtn = document.getElementById('jumpBtn');
+    const shootBtn = document.getElementById('shootBtn');
     
-    // Alternative pointer lock event names for different browsers
-    document.addEventListener('mozpointerlockchange', () => {
-        if (document.mozPointerLockElement === null && gameStarted) {
-            console.log('Pointer lock lost (Mozilla)');
-        }
-    });
+    // Calculate joystick center and radius
+    const updateJoystickGeometry = () => {
+        const rect = joystick.getBoundingClientRect();
+        touchControls.joystick.centerX = rect.left + rect.width / 2;
+        touchControls.joystick.centerY = rect.top + rect.height / 2;
+        touchControls.joystick.maxRadius = rect.width / 2 - 20; // Account for handle size
+    };
     
-    document.addEventListener('webkitpointerlockchange', () => {
-        if (document.webkitPointerLockElement === null && gameStarted) {
-            console.log('Pointer lock lost (Webkit)');
+    updateJoystickGeometry();
+    window.addEventListener('resize', updateJoystickGeometry);
+    
+    // Joystick touch events
+    joystick.addEventListener('touchstart', (event) => {
+        event.preventDefault();
+        touchControls.movement.active = true;
+        const touch = event.touches[0];
+        updateJoystickPosition(touch.clientX, touch.clientY);
+    }, { passive: false });
+    
+    joystick.addEventListener('touchmove', (event) => {
+        event.preventDefault();
+        if (touchControls.movement.active) {
+            const touch = event.touches[0];
+            updateJoystickPosition(touch.clientX, touch.clientY);
+        }
+    }, { passive: false });
+    
+    joystick.addEventListener('touchend', (event) => {
+        event.preventDefault();
+        touchControls.movement.active = false;
+        touchControls.movement.x = 0;
+        touchControls.movement.y = 0;
+        
+        // Reset handle to center
+        joystickHandle.style.transform = 'translate(-50%, -50%)';
+    }, { passive: false });
+    
+    // Jump button
+    jumpBtn.addEventListener('touchstart', (event) => {
+        event.preventDefault();
+        touchControls.jumpPressed = true;
+        if (gameStarted && playerOnGround) {
+            playerVelocity.y = JUMP_FORCE;
+            playerOnGround = false;
+        }
+    }, { passive: false });
+    
+    jumpBtn.addEventListener('touchend', (event) => {
+        event.preventDefault();
+        touchControls.jumpPressed = false;
+    }, { passive: false });
+    
+    // Shoot button
+    shootBtn.addEventListener('touchstart', (event) => {
+        event.preventDefault();
+        touchControls.shootPressed = true;
+        if (gameStarted) {
+            shootLaser();
+        }
+    }, { passive: false });
+    
+    shootBtn.addEventListener('touchend', (event) => {
+        event.preventDefault();
+        touchControls.shootPressed = false;
+    }, { passive: false });
+    
+    // Prevent context menu on long press
+    document.addEventListener('contextmenu', (event) => {
+        if (isMobile) {
+            event.preventDefault();
         }
     });
+}
+
+function updateJoystickPosition(touchX, touchY) {
+    const deltaX = touchX - touchControls.joystick.centerX;
+    const deltaY = touchY - touchControls.joystick.centerY;
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    
+    if (distance <= touchControls.joystick.maxRadius) {
+        // Within joystick area
+        touchControls.movement.x = deltaX / touchControls.joystick.maxRadius;
+        touchControls.movement.y = deltaY / touchControls.joystick.maxRadius;
+        
+        // Update handle position
+        const handle = document.getElementById('joystickHandle');
+        handle.style.transform = `translate(-50%, -50%) translate(${deltaX}px, ${deltaY}px)`;
+    } else {
+        // Outside joystick area - clamp to edge
+        const angle = Math.atan2(deltaY, deltaX);
+        const clampedX = Math.cos(angle) * touchControls.joystick.maxRadius;
+        const clampedY = Math.sin(angle) * touchControls.joystick.maxRadius;
+        
+        touchControls.movement.x = clampedX / touchControls.joystick.maxRadius;
+        touchControls.movement.y = clampedY / touchControls.joystick.maxRadius;
+        
+        // Update handle position
+        const handle = document.getElementById('joystickHandle');
+        handle.style.transform = `translate(-50%, -50%) translate(${clampedX}px, ${clampedY}px)`;
+    }
 }
 
 function startGame() {
@@ -996,17 +1154,21 @@ function startGame() {
     gameStarted = true;
     document.getElementById('instructions').classList.add('hidden');
     
-    // Request pointer lock with fallbacks for different browsers
-    const element = document.body;
-    const requestPointerLock = element.requestPointerLock || 
-                               element.mozRequestPointerLock || 
-                               element.webkitRequestPointerLock;
-    
-    if (requestPointerLock) {
-        console.log('Requesting pointer lock...');
-        requestPointerLock.call(element);
+    // Request pointer lock only on desktop
+    if (!isMobile) {
+        const element = document.body;
+        const requestPointerLock = element.requestPointerLock || 
+                                   element.mozRequestPointerLock || 
+                                   element.webkitRequestPointerLock;
+        
+        if (requestPointerLock) {
+            console.log('Requesting pointer lock...');
+            requestPointerLock.call(element);
+        } else {
+            console.log('Pointer lock not supported');
+        }
     } else {
-        console.log('Pointer lock not supported');
+        console.log('Mobile device - skipping pointer lock');
     }
     
     // Add laser gun to camera
@@ -1341,10 +1503,27 @@ function updatePlayer(deltaTime) {
     // Movement
     const moveVector = new THREE.Vector3();
     
-    if (keys['KeyW']) moveVector.z -= 1;
-    if (keys['KeyS']) moveVector.z += 1;
-    if (keys['KeyA']) moveVector.x -= 1;
-    if (keys['KeyD']) moveVector.x += 1;
+    if (isMobile) {
+        // Mobile touch controls
+        if (touchControls.movement.active) {
+            // Use joystick input for movement
+            // X controls strafe, Y controls forward/backward
+            moveVector.x = touchControls.movement.x;
+            moveVector.z = touchControls.movement.y; // Forward/backward
+            
+            // Also use joystick for camera rotation (looking around)
+            const rotationSpeed = 2.0; // Adjust sensitivity
+            mouseX -= touchControls.movement.x * rotationSpeed * deltaTime;
+            mouseY += touchControls.movement.y * rotationSpeed * deltaTime;
+            mouseY = Math.max(-Math.PI/2, Math.min(Math.PI/2, mouseY));
+        }
+    } else {
+        // Desktop keyboard controls
+        if (keys['KeyW']) moveVector.z -= 1;
+        if (keys['KeyS']) moveVector.z += 1;
+        if (keys['KeyA']) moveVector.x -= 1;
+        if (keys['KeyD']) moveVector.x += 1;
+    }
     
     if (moveVector.length() > 0) {
         moveVector.normalize();
@@ -1352,7 +1531,8 @@ function updatePlayer(deltaTime) {
         moveVector.y = 0;
         moveVector.normalize();
         
-        camera.position.add(moveVector.multiplyScalar(MOVE_SPEED * deltaTime));
+        const speed = isMobile ? MOVE_SPEED * 0.8 : MOVE_SPEED; // Slightly slower on mobile
+        camera.position.add(moveVector.multiplyScalar(speed * deltaTime));
     }
     
     // Apply vertical velocity

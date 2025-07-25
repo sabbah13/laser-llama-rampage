@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Laser Llama Rampage 🦙💥</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -15,14 +15,39 @@
             <div id="ammo">Ammo: ∞</div>
             <div id="score">Score: 0</div>
         </div>
+        
+        <!-- Mobile Touch Controls -->
+        <div id="mobileControls" class="mobile-only">
+            <div id="leftThumbControls">
+                <button id="jumpBtn" class="control-btn">
+                    <span>🦘</span>
+                </button>
+                <button id="shootBtn" class="control-btn">
+                    <span>🔫</span>
+                </button>
+            </div>
+            <div id="movementArea">
+                <div id="movementJoystick">
+                    <div id="joystickHandle"></div>
+                </div>
+            </div>
+        </div>
+        
         <div id="instructions">
             <h2>🦙 Laser Llama Rampage 💥</h2>
-            <h3>Controls:</h3>
-            <p>WASD - Move</p>
-            <p>Mouse - Look around</p>
-            <p>SPACE - Jump</p>
-            <p>SHIFT or CLICK - Shoot laser</p>
-            <p>M - Mute all sounds</p>
+            <h3 id="controlsTitle">Controls:</h3>
+            <div id="desktopControls">
+                <p>WASD - Move</p>
+                <p>Mouse - Look around</p>
+                <p>SPACE - Jump</p>
+                <p>SHIFT or CLICK - Shoot laser</p>
+                <p>M - Mute all sounds</p>
+            </div>
+            <div id="mobileInstructions" class="mobile-only">
+                <p>Drag in center area - Move & look</p>
+                <p>🦘 Button - Jump</p>
+                <p>🔫 Button - Shoot laser</p>
+            </div>
             <p>Click to start playing</p>
         </div>
     </div>
