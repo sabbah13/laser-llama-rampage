@@ -90,6 +90,24 @@ function init() {
     
     // Check initial orientation
     checkOrientation();
+    
+    // Add page visibility handling for mobile
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // Page is hidden, mute all sounds on mobile
+            if (isMobile) {
+                window.wasAudioMuted = allSoundsMuted;
+                allSoundsMuted = true;
+                console.log('Page hidden - audio muted');
+            }
+        } else {
+            // Page is visible again, restore previous audio state
+            if (isMobile && window.wasAudioMuted !== undefined) {
+                allSoundsMuted = window.wasAudioMuted;
+                console.log('Page visible - audio restored');
+            }
+        }
+    });
 
     // Start health pack spawning
     startHealthPackSpawning();
@@ -119,13 +137,63 @@ function initPlayer() {
     playerOnGround = false;
 }
 
+function checkMobileSoundSettings() {
+    // Check if device is in silent mode (iOS/Android detection)
+    if (isMobile) {
+        // Try to detect silent mode on mobile
+        navigator.mediaSession = navigator.mediaSession || {};
+        
+        // Check for reduced motion preference (accessibility)
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        
+        // Respect mobile volume settings
+        const testAudio = () => {
+            try {
+                const testCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = testCtx.createOscillator();
+                const gainNode = testCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(testCtx.destination);
+                gainNode.gain.setValueAtTime(0.001, testCtx.currentTime); // Very quiet test
+                
+                oscillator.start();
+                oscillator.stop(testCtx.currentTime + 0.01);
+                
+                return true;
+            } catch (e) {
+                console.log('Mobile audio restricted or silent mode detected');
+                return false;
+            }
+        };
+        
+        if (prefersReducedMotion || !testAudio()) {
+            allSoundsMuted = true;
+            musicEnabled = false;
+            console.log('Mobile sound settings: Audio disabled due to accessibility or device settings');
+            return false;
+        }
+    }
+    return true;
+}
+
 function initSounds() {
     try {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        createSounds();
-        startBackgroundMusic();
+        
+        // Check mobile sound settings
+        const canPlayAudio = checkMobileSoundSettings();
+        
+        if (canPlayAudio) {
+            createSounds();
+            startBackgroundMusic();
+        } else {
+            console.log('Audio initialization skipped due to mobile settings');
+        }
     } catch (error) {
         console.warn('Audio not supported:', error);
+        allSoundsMuted = true;
+        musicEnabled = false;
     }
 }
 
@@ -283,18 +351,27 @@ function toggleMusic() {
     allSoundsMuted = !allSoundsMuted;
     console.log('All sounds', allSoundsMuted ? 'muted' : 'unmuted');
     
+    // Provide visual feedback for mute toggle
+    const body = document.body;
     if (allSoundsMuted) {
+        body.classList.add('muted-flash');
         // Mute everything
         if (backgroundMusic) {
             backgroundMusic.stop();
             backgroundMusic = null;
         }
     } else {
+        body.classList.add('unmuted-flash');
         // Unmute - restart music if it was enabled
         if (musicEnabled && audioContext) {
             startBackgroundMusic();
         }
     }
+    
+    // Remove flash effect
+    setTimeout(() => {
+        body.classList.remove('muted-flash', 'unmuted-flash');
+    }, 200);
     
     updateUI();
 }
@@ -964,37 +1041,40 @@ function setupEventListeners() {
         document.getElementById('desktopControls').style.display = 'block';
     }
     
-    // Keyboard events (desktop only)
-    if (!isMobile) {
-        document.addEventListener('keydown', (event) => {
-            keys[event.code] = true;
+    // Keyboard events
+    document.addEventListener('keydown', (event) => {
+        keys[event.code] = true;
+        
+        // M key for mute works everywhere (desktop and mobile with keyboard)
+        if (event.code === 'KeyM') {
+            toggleMusic();
+            return;
+        }
+        
+        // Other keys only work on desktop or when game started
+        if (!isMobile && gameStarted) {
+            console.log('Key pressed:', event.code);
             
-            if (gameStarted) {
-                console.log('Key pressed:', event.code);
-                
-                if (event.code === 'Space') {
-                    event.preventDefault();
-                    if (playerOnGround) {
-                        playerVelocity.y = JUMP_FORCE;
-                        playerOnGround = false;
-                    }
-                }
-                
-                if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
-                    shootLaser();
-                }
-                
-                if (event.code === 'KeyM') {
-                    toggleMusic();
+            if (event.code === 'Space') {
+                event.preventDefault();
+                if (playerOnGround) {
+                    playerVelocity.y = JUMP_FORCE;
+                    playerOnGround = false;
                 }
             }
-        });
+            
+            if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+                shootLaser();
+            }
+        }
+    });
 
-        document.addEventListener('keyup', (event) => {
-            keys[event.code] = false;
-        });
+    document.addEventListener('keyup', (event) => {
+        keys[event.code] = false;
+    });
 
-        // Mouse events (desktop only)
+    // Mouse events (desktop only)
+    if (!isMobile) {
         document.addEventListener('mousemove', (event) => {
             if (gameStarted) {
                 const locked = document.pointerLockElement || 
@@ -1013,7 +1093,7 @@ function setupEventListeners() {
         document.addEventListener('click', (event) => {
             if (!gameStarted) {
                 startGame();
-            } else if (!isMobile) {
+            } else {
                 shootLaser();
             }
         });
@@ -1533,11 +1613,19 @@ function gameOver() {
     
     finalScoreElement.textContent = `Score: ${score}`;
     gameOverScreen.style.display = 'flex';
+    gameOverScreen.style.opacity = '1'; // Ensure it's visible
     
     // Add click listener to restart game
-    const restartGame = () => {
+    const restartGame = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        console.log('Restarting game...');
+        
+        // Remove event listeners
         gameOverScreen.removeEventListener('click', restartGame);
         gameOverScreen.removeEventListener('touchstart', restartGame);
+        document.removeEventListener('keydown', restartGameKeyboard);
         
         // Fade out game over screen
         gameOverScreen.style.transition = 'opacity 0.5s ease-out';
@@ -1548,10 +1636,19 @@ function gameOver() {
         }, 500);
     };
     
+    // Keyboard restart for desktop
+    const restartGameKeyboard = (event) => {
+        if (event.code === 'Space' || event.code === 'Enter' || event.code === 'Escape') {
+            restartGame(event);
+        }
+    };
+    
     // Wait for game over animation to complete before allowing restart
     setTimeout(() => {
-        gameOverScreen.addEventListener('click', restartGame);
-        gameOverScreen.addEventListener('touchstart', restartGame);
+        console.log('Adding restart listeners');
+        gameOverScreen.addEventListener('click', restartGame, { passive: false });
+        gameOverScreen.addEventListener('touchstart', restartGame, { passive: false });
+        document.addEventListener('keydown', restartGameKeyboard, { passive: false });
     }, 3000); // Wait 3 seconds for the full animation
 }
 

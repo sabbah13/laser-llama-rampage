@@ -201,6 +201,27 @@ body {
     100% { background-color: rgba(255, 0, 0, 0); }
 }
 
+/* Mute/unmute flash effects */
+.muted-flash {
+    animation: mutedFlash 0.2s ease-out;
+}
+
+.unmuted-flash {
+    animation: unmutedFlash 0.2s ease-out;
+}
+
+@keyframes mutedFlash {
+    0% { background-color: rgba(255, 255, 255, 0); }
+    50% { background-color: rgba(255, 255, 255, 0.2); }
+    100% { background-color: rgba(255, 255, 255, 0); }
+}
+
+@keyframes unmutedFlash {
+    0% { background-color: rgba(0, 255, 0, 0); }
+    50% { background-color: rgba(0, 255, 0, 0.2); }
+    100% { background-color: rgba(0, 255, 0, 0); }
+}
+
 /* Mobile/Desktop Detection */
 .mobile-only {
     display: none;
