@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low-Poly 3D Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="crosshair">+</div>
+        <div id="ui">
+            <div id="health">Health: 100</div>
+            <div id="ammo">Ammo: ∞</div>
+            <div id="score">Score: 0</div>
+        </div>
+        <div id="instructions">
+            <h2>Controls:</h2>
+            <p>WASD - Move</p>
+            <p>Mouse - Look around</p>
+            <p>SPACE or CLICK - Shoot laser</p>
+            <p>SHIFT - Jump</p>
+            <p>M - Toggle music</p>
+            <p>Click to start playing</p>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
