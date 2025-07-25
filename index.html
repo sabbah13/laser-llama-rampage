@@ -44,11 +44,30 @@
                 <p>M - Mute all sounds</p>
             </div>
             <div id="mobileInstructions" class="mobile-only">
-                <p>Drag in center area - Move & look</p>
+                <p>Tap circle - Move forward & rotate</p>
                 <p>🦘 Button - Jump</p>
                 <p>🔫 Button - Shoot laser</p>
             </div>
             <p>Click to start playing</p>
+        </div>
+        
+        <!-- Orientation Warning for Mobile -->
+        <div id="orientationWarning" class="mobile-only">
+            <div id="orientationContent">
+                <div id="rotateIcon">📱➡️📱</div>
+                <h2>Rotate Your Device</h2>
+                <p>Please rotate your phone to landscape mode to play</p>
+            </div>
+        </div>
+        
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen">
+            <div id="fadeOverlay"></div>
+            <div id="gameOverContent">
+                <h1 id="gameOverTitle">GAME OVER</h1>
+                <div id="finalScore">Score: 0</div>
+                <p id="restartHint">Click to restart</p>
+            </div>
         </div>
     </div>
     

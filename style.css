@@ -206,6 +206,166 @@ body {
     display: none;
 }
 
+/* Orientation Warning */
+#orientationWarning {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+#orientationContent {
+    text-align: center;
+    color: white;
+    padding: 40px;
+}
+
+#rotateIcon {
+    font-size: 60px;
+    margin-bottom: 20px;
+    animation: rotatePhone 2s ease-in-out infinite;
+}
+
+#orientationContent h2 {
+    color: #4ecdc4;
+    font-size: 24px;
+    margin-bottom: 15px;
+}
+
+#orientationContent p {
+    color: #ffd93d;
+    font-size: 16px;
+}
+
+@keyframes rotatePhone {
+    0% { transform: rotate(0deg); }
+    50% { transform: rotate(15deg); }
+    100% { transform: rotate(0deg); }
+}
+
+/* Immortality blinking effect */
+.immortal-blink {
+    animation: immortalBlink 0.3s ease-in-out infinite;
+}
+
+@keyframes immortalBlink {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
+
+/* Game Over Screen */
+#gameOverScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+#fadeOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: black;
+    opacity: 0;
+    animation: fadeIn 1s ease-out forwards;
+}
+
+#gameOverContent {
+    position: relative;
+    text-align: center;
+    z-index: 301;
+    opacity: 0;
+    animation: gameOverAppear 2s ease-out 1s forwards;
+}
+
+#gameOverTitle {
+    font-size: 120px;
+    font-weight: bold;
+    color: #ff0000;
+    text-shadow: 
+        5px 5px 0px #800000,
+        10px 10px 0px #400000,
+        15px 15px 20px rgba(0,0,0,0.8),
+        0 0 30px #ff0000,
+        0 0 60px #ff0000;
+    margin: 0;
+    letter-spacing: 8px;
+    transform: perspective(500px) rotateX(20deg);
+    animation: bloodDrip 3s ease-in-out infinite;
+}
+
+#finalScore {
+    font-size: 36px;
+    color: #ff6b6b;
+    margin: 30px 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+}
+
+#restartHint {
+    font-size: 24px;
+    color: #ffd93d;
+    margin-top: 40px;
+    animation: pulse 2s infinite;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 0.9; }
+}
+
+@keyframes gameOverAppear {
+    from { 
+        opacity: 0; 
+        transform: scale(0.5) translateY(50px);
+    }
+    to { 
+        opacity: 1; 
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes bloodDrip {
+    0% { 
+        text-shadow: 
+            5px 5px 0px #800000,
+            10px 10px 0px #400000,
+            15px 15px 20px rgba(0,0,0,0.8),
+            0 0 30px #ff0000,
+            0 0 60px #ff0000;
+    }
+    50% { 
+        text-shadow: 
+            6px 8px 0px #800000,
+            12px 16px 0px #400000,
+            18px 24px 25px rgba(0,0,0,0.9),
+            0 0 40px #ff0000,
+            0 0 80px #ff0000;
+    }
+    100% { 
+        text-shadow: 
+            5px 5px 0px #800000,
+            10px 10px 0px #400000,
+            15px 15px 20px rgba(0,0,0,0.8),
+            0 0 30px #ff0000,
+            0 0 60px #ff0000;
+    }
+}
+
 /* Mobile Styles */
 @media (max-width: 768px), (hover: none) {
     .mobile-only {
@@ -243,10 +403,31 @@ body {
     #instructions p {
         font-size: 14px;
     }
+    
+    /* Mobile Game Over */
+    #gameOverTitle {
+        font-size: 60px !important;
+        letter-spacing: 4px !important;
+    }
+    
+    #finalScore {
+        font-size: 24px !important;
+    }
+    
+    #restartHint {
+        font-size: 18px !important;
+    }
+}
+
+/* Portrait orientation - show rotation warning */
+@media (max-width: 768px) and (orientation: portrait) {
+    #orientationWarning {
+        display: flex !important;
+    }
 }
 
 /* Extra small screens */
-@media (max-width: 480px) {
+@media (max-width: 480px) and (orientation: landscape) {
     .control-btn {
         width: 60px;
         height: 60px;

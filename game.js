@@ -14,12 +14,18 @@ let cameraShake = { x: 0, y: 0, intensity: 0, duration: 0 };
 
 // Mobile touch controls
 let isMobile = false;
+let isLandscape = true;
 let touchControls = {
-    movement: { x: 0, y: 0, active: false },
+    movement: { x: 0, y: 0, active: false, moving: false },
     joystick: { centerX: 0, centerY: 0, maxRadius: 0 },
     jumpPressed: false,
     shootPressed: false
 };
+
+// Player immortality
+let immortalityStart = 0;
+let immortalityDuration = 5000; // 5 seconds
+let isImmortal = false;
 
 // Game stats
 let health = 100;
@@ -81,6 +87,9 @@ function init() {
 
     // Set up event listeners
     setupEventListeners();
+    
+    // Check initial orientation
+    checkOrientation();
 
     // Start health pack spawning
     startHealthPackSpawning();
@@ -924,6 +933,22 @@ function detectMobile() {
            window.innerWidth <= 768;
 }
 
+function checkOrientation() {
+    if (isMobile) {
+        isLandscape = window.innerWidth > window.innerHeight;
+        const orientationWarning = document.getElementById('orientationWarning');
+        
+        if (!isLandscape) {
+            orientationWarning.style.display = 'flex';
+            return false; // Can't start game in portrait
+        } else {
+            orientationWarning.style.display = 'none';
+            return true; // Can start game in landscape
+        }
+    }
+    return true; // Desktop can always start
+}
+
 function setupEventListeners() {
     // Detect if mobile device
     isMobile = detectMobile();
@@ -997,14 +1022,21 @@ function setupEventListeners() {
     // Touch events for mobile game start
     if (isMobile) {
         document.addEventListener('touchstart', (event) => {
-            if (!gameStarted) {
+            if (!gameStarted && checkOrientation()) {
                 event.preventDefault();
                 startGame();
             }
         }, { passive: false });
     }
+    
+    // Orientation change handling
+    window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+            checkOrientation();
+        }, 100);
+    });
 
-    // Window resize
+    // Window resize - handle camera, mobile detection, and orientation
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
@@ -1016,6 +1048,9 @@ function setupEventListeners() {
         if (wasMobile !== isMobile) {
             location.reload(); // Reload if mobile state changes
         }
+        
+        // Check orientation
+        checkOrientation();
     });
 
     // Pointer lock change (desktop only)
@@ -1079,6 +1114,7 @@ function setupMobileControls() {
         touchControls.movement.active = false;
         touchControls.movement.x = 0;
         touchControls.movement.y = 0;
+        touchControls.movement.moving = false; // Stop moving forward
         
         // Reset handle to center
         joystickHandle.style.transform = 'translate(-50%, -50%)';
@@ -1127,32 +1163,44 @@ function updateJoystickPosition(touchX, touchY) {
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
     
     if (distance <= touchControls.joystick.maxRadius) {
-        // Within joystick area
+        // Within joystick area - only use X for rotation, any touch means moving forward
         touchControls.movement.x = deltaX / touchControls.joystick.maxRadius;
-        touchControls.movement.y = deltaY / touchControls.joystick.maxRadius;
+        touchControls.movement.y = 0; // Don't use Y for movement anymore
+        touchControls.movement.moving = true; // Player is always moving forward when touching
         
         // Update handle position
         const handle = document.getElementById('joystickHandle');
-        handle.style.transform = `translate(-50%, -50%) translate(${deltaX}px, ${deltaY}px)`;
+        handle.style.transform = `translate(-50%, -50%) translate(${deltaX}px, 0px)`; // Only move handle horizontally
     } else {
-        // Outside joystick area - clamp to edge
-        const angle = Math.atan2(deltaY, deltaX);
-        const clampedX = Math.cos(angle) * touchControls.joystick.maxRadius;
-        const clampedY = Math.sin(angle) * touchControls.joystick.maxRadius;
+        // Outside joystick area - clamp to horizontal edge only
+        const clampedX = Math.sign(deltaX) * touchControls.joystick.maxRadius;
         
         touchControls.movement.x = clampedX / touchControls.joystick.maxRadius;
-        touchControls.movement.y = clampedY / touchControls.joystick.maxRadius;
+        touchControls.movement.y = 0;
+        touchControls.movement.moving = true;
         
         // Update handle position
         const handle = document.getElementById('joystickHandle');
-        handle.style.transform = `translate(-50%, -50%) translate(${clampedX}px, ${clampedY}px)`;
+        handle.style.transform = `translate(-50%, -50%) translate(${clampedX}px, 0px)`;
     }
 }
 
 function startGame() {
     console.log('Starting game...');
+    
+    // Check orientation on mobile before starting
+    if (isMobile && !checkOrientation()) {
+        console.log('Cannot start game - device not in landscape mode');
+        return;
+    }
+    
     gameStarted = true;
     document.getElementById('instructions').classList.add('hidden');
+    
+    // Initialize immortality period
+    immortalityStart = Date.now();
+    isImmortal = true;
+    console.log('Player is immortal for', immortalityDuration / 1000, 'seconds');
     
     // Request pointer lock only on desktop
     if (!isMobile) {
@@ -1174,6 +1222,9 @@ function startGame() {
     // Add laser gun to camera
     const gun = createLaserGun();
     scene.add(camera);
+    
+    // Store gun reference for immortality blinking effect
+    window.playerGun = gun;
     
     console.log('Game started successfully');
 }
@@ -1445,6 +1496,18 @@ function updateProjectiles(deltaTime) {
 }
 
 function takeDamage(amount) {
+    // Don't take damage if game hasn't started yet
+    if (!gameStarted) {
+        console.log('Game not started - no damage taken');
+        return;
+    }
+    
+    // Don't take damage if immortal
+    if (isImmortal) {
+        console.log('Player is immortal - no damage taken');
+        return;
+    }
+    
     health -= amount;
     health = Math.max(0, health);
     updateUI();
@@ -1462,8 +1525,34 @@ function takeDamage(amount) {
 
 function gameOver() {
     gameStarted = false;
-    alert(`Game Over! Your score: ${score}\nClick OK to restart.`);
-    location.reload();
+    console.log('Game Over! Score:', score);
+    
+    // Show game over screen
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const finalScoreElement = document.getElementById('finalScore');
+    
+    finalScoreElement.textContent = `Score: ${score}`;
+    gameOverScreen.style.display = 'flex';
+    
+    // Add click listener to restart game
+    const restartGame = () => {
+        gameOverScreen.removeEventListener('click', restartGame);
+        gameOverScreen.removeEventListener('touchstart', restartGame);
+        
+        // Fade out game over screen
+        gameOverScreen.style.transition = 'opacity 0.5s ease-out';
+        gameOverScreen.style.opacity = '0';
+        
+        setTimeout(() => {
+            location.reload();
+        }, 500);
+    };
+    
+    // Wait for game over animation to complete before allowing restart
+    setTimeout(() => {
+        gameOverScreen.addEventListener('click', restartGame);
+        gameOverScreen.addEventListener('touchstart', restartGame);
+    }, 3000); // Wait 3 seconds for the full animation
 }
 
 function updateUI() {
@@ -1495,6 +1584,36 @@ function checkCollisions() {
 function updatePlayer(deltaTime) {
     if (!gameStarted) return;
     
+    // Update immortality status
+    if (isImmortal) {
+        const elapsed = Date.now() - immortalityStart;
+        if (elapsed >= immortalityDuration) {
+            isImmortal = false;
+            console.log('Immortality period ended');
+            
+            // Stop blinking effect on gun
+            if (window.playerGun) {
+                window.playerGun.children.forEach(child => {
+                    if (child.material) {
+                        child.material.opacity = 1;
+                        child.material.transparent = false;
+                    }
+                });
+            }
+        } else {
+            // Apply blinking effect to gun
+            if (window.playerGun) {
+                const blinkIntensity = Math.sin(elapsed * 0.01) * 0.5 + 0.5; // Oscillate between 0.5 and 1
+                window.playerGun.children.forEach(child => {
+                    if (child.material) {
+                        child.material.opacity = 0.3 + blinkIntensity * 0.7;
+                        child.material.transparent = true;
+                    }
+                });
+            }
+        }
+    }
+    
     // Apply gravity
     if (!playerOnGround) {
         playerVelocity.y += GRAVITY * deltaTime;
@@ -1504,18 +1623,14 @@ function updatePlayer(deltaTime) {
     const moveVector = new THREE.Vector3();
     
     if (isMobile) {
-        // Mobile touch controls
-        if (touchControls.movement.active) {
-            // Use joystick input for movement
-            // X controls strafe, Y controls forward/backward
-            moveVector.x = touchControls.movement.x;
-            moveVector.z = touchControls.movement.y; // Forward/backward
+        // Mobile touch controls - only forward movement with left/right rotation
+        if (touchControls.movement.moving) {
+            // Always move forward when joystick is touched
+            moveVector.z = -1; // Forward movement
             
-            // Also use joystick for camera rotation (looking around)
-            const rotationSpeed = 2.0; // Adjust sensitivity
+            // Use joystick X for camera rotation (left/right looking)
+            const rotationSpeed = 3.0; // Adjust sensitivity
             mouseX -= touchControls.movement.x * rotationSpeed * deltaTime;
-            mouseY += touchControls.movement.y * rotationSpeed * deltaTime;
-            mouseY = Math.max(-Math.PI/2, Math.min(Math.PI/2, mouseY));
         }
     } else {
         // Desktop keyboard controls
@@ -1531,7 +1646,7 @@ function updatePlayer(deltaTime) {
         moveVector.y = 0;
         moveVector.normalize();
         
-        const speed = isMobile ? MOVE_SPEED * 0.8 : MOVE_SPEED; // Slightly slower on mobile
+        const speed = isMobile ? MOVE_SPEED * 0.7 : MOVE_SPEED; // Slower on mobile for better control
         camera.position.add(moveVector.multiplyScalar(speed * deltaTime));
     }
     
