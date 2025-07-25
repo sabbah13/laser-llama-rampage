@@ -23,6 +23,7 @@ let audioContext;
 let sounds = {};
 let backgroundMusic;
 let musicEnabled = true;
+let allSoundsMuted = false; // Master mute control
 let soundVolume = 0.1; // Much quieter
 let musicVolume = 0.02; // Very quiet background music
 
@@ -220,12 +221,12 @@ function createTrollWalkSound() {
 }
 
 function startBackgroundMusic() {
-    if (!audioContext || !musicEnabled) return;
+    if (!audioContext || !musicEnabled || allSoundsMuted) return;
     
     // Create ambient background music
     const createAmbientTone = (freq, delay = 0) => {
         setTimeout(() => {
-            if (!gameStarted || !musicEnabled) return;
+            if (!gameStarted || !musicEnabled || allSoundsMuted) return;
             
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
@@ -261,11 +262,20 @@ function startBackgroundMusic() {
 }
 
 function toggleMusic() {
-    musicEnabled = !musicEnabled;
-    console.log('Music', musicEnabled ? 'enabled' : 'disabled');
+    allSoundsMuted = !allSoundsMuted;
+    console.log('All sounds', allSoundsMuted ? 'muted' : 'unmuted');
     
-    if (musicEnabled && audioContext) {
-        startBackgroundMusic();
+    if (allSoundsMuted) {
+        // Mute everything
+        if (backgroundMusic) {
+            backgroundMusic.stop();
+            backgroundMusic = null;
+        }
+    } else {
+        // Unmute - restart music if it was enabled
+        if (musicEnabled && audioContext) {
+            startBackgroundMusic();
+        }
     }
     
     updateUI();
@@ -655,7 +665,7 @@ function updateHealthPacks(deltaTime) {
             health = Math.min(maxHealth, health + healAmount);
             
             console.log(`Health pack collected! Healed ${healAmount} HP`);
-            sounds.healthPickup();
+            if (!allSoundsMuted) sounds.healthPickup();
             updateUI();
             
             // Remove health pack
@@ -813,7 +823,7 @@ function updateTrolls(deltaTime) {
                 shakeGround(0.5, 1000);
                 
                 // Play landing sound
-                sounds.trollLand();
+                // sounds.trollLand(); // Disabled enemy sounds
                 
                 console.log('Troll landed with a thud!');
             }
@@ -829,7 +839,7 @@ function updateTrolls(deltaTime) {
             
             // Play walking sound occasionally
             if (!troll.lastWalkSound || Date.now() - troll.lastWalkSound > 1200) {
-                sounds.trollWalk();
+                // sounds.trollWalk(); // Disabled enemy sounds
                 troll.lastWalkSound = Date.now();
             }
             
@@ -909,14 +919,14 @@ function setupEventListeners() {
             
             if (event.code === 'Space') {
                 event.preventDefault();
-                shootLaser();
-            }
-            
-            if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
                 if (playerOnGround) {
                     playerVelocity.y = JUMP_FORCE;
                     playerOnGround = false;
                 }
+            }
+            
+            if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+                shootLaser();
             }
             
             if (event.code === 'KeyM') {
@@ -1014,7 +1024,7 @@ function shootLaser() {
     console.log('Shooting laser!');
     
     // Play laser sound
-    sounds.laser();
+    if (!allSoundsMuted) sounds.laser();
 
     // Get gun position (offset from camera to simulate gun barrel)
     const gunOffset = new THREE.Vector3(0.6, -0.2, -1.2);
@@ -1204,7 +1214,7 @@ function updateGoblins(deltaTime) {
         
         // Play walking sound occasionally
         if (!goblin.lastWalkSound || Date.now() - goblin.lastWalkSound > 800) {
-            sounds.goblinWalk();
+            // sounds.goblinWalk(); // Disabled enemy sounds
             goblin.lastWalkSound = Date.now();
         }
         
